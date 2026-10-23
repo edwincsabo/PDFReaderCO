@@ -8,14 +8,15 @@
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
+    "runtime": "node node_modules/electron/install.js",
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build && node scripts/copy-assets.mjs",
-    "desktop": "electron .",
-    "dist": "npm run build && node scripts/prepare-desktop.mjs && electron-builder --win nsis portable --x64 --publish never",
+    "desktop": "npm run runtime && electron .",
+    "dist": "npm run runtime && npm run build && node scripts/prepare-desktop.mjs && electron-builder --win nsis portable --x64 --publish never",
     "test": "node --test tests/*.test.mjs",
     "test:ui": "playwright test",
     "test:packaged": "node scripts/test-packaged.mjs",
-    "dist:folder": "npm run build && node scripts/prepare-desktop.mjs && node scripts/package-app.mjs && node scripts/package-folder.mjs",
+    "dist:folder": "npm run runtime && npm run build && node scripts/prepare-desktop.mjs && node scripts/package-app.mjs && node scripts/package-folder.mjs",
     "test:folder": "node scripts/test-packaged.mjs --folder"
   },
   "dependencies": {

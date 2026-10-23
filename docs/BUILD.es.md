@@ -21,6 +21,10 @@ npm run desktop
 `npm run dev` inicia Vite para desarrollo; las operaciones de escritorio,
 almacenamiento seguro y diálogos nativos requieren Electron.
 
+Los comandos `desktop`, `dist` y `dist:folder` preparan el runtime oficial de
+Electron mediante su instalador incluido. Si ya está instalado, conservan esa
+copia; en una instalación limpia se descarga y comprueba la versión fijada.
+
 ## Distribución de Windows
 
 ```powershell

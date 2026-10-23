@@ -34,7 +34,23 @@ solamente `electron.exe` ni `app.asar`.
 
 `npm run dist` ofrece los objetivos NSIS y portátil de electron-builder. Su
 ejecución puede depender de las políticas del equipo; la distribución en carpeta
-es el formato validado. No se configura firma Authenticode ni publicación automática.
+es el formato validado. No se configura firma Authenticode.
+
+GitHub Actions compila y publica el ZIP de Windows desde
+`.github/workflows/release-windows.yml`, al modificar ese flujo o `package.json`
+en `main`, o al ejecutarlo manualmente. Ejecuta las pruebas del motor y cinco
+flujos de idioma, verifica el paquete y sus idiomas OCR, y comprueba cada archivo
+del ZIP. El trabajo de publicación utiliza el token temporal de GitHub; no pide
+claves personales. Una versión existente no se sobrescribe: aumenta la versión
+de `package.json` y su lockfile para publicar una nueva entrega.
+
+Para preparar el ZIP localmente después de `npm run dist:folder`:
+
+```powershell
+./scripts/package-release.ps1
+```
+
+Genera el ZIP, SHA-256 y notas bilingües en `release/github-assets/`.
 
 ## Pruebas
 

@@ -1,0 +1,90 @@
+name: Windows download
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/release-windows.yml
+      - package.json
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-windows
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    outputs:
+      version: ${{ steps.metadata.outputs.version }}
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Read version
+        id: metadata
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid stable release version.' }
+          "version=$version" >> $env:GITHUB_OUTPUT
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Verify PDF engines
+        run: npm test
+      - name: Build Windows folder
+        run: npm run dist:folder
+      - name: Verify packaged application and OCR assets
+        run: node scripts/verify-app.mjs
+      - name: Check Spanish and English desktop workflows
+        run: node scripts/test-packaged.mjs --folder tests/localization.spec.ts
+      - name: Create and verify download ZIP
+        run: ./scripts/package-release.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-release
+          path: release/github-assets/*
+          compression-level: 0
+          retention-days: 7
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    if: github.repository == 'edwincsabo/PDFReaderCO' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-release
+          path: release-assets
+      - name: Publish Windows download
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+          RELEASE_COMMIT: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd release-assets
+          sha256sum --check SHA256SUMS.txt
+          test "$(tr -d '\r\n' < version.txt)" = "$RELEASE_VERSION"
+          gh release create "v$RELEASE_VERSION" \
+            PDFReaderCO-Windows-x64.zip SHA256SUMS.txt \
+            --target "$RELEASE_COMMIT" \
+            --title "PDFReaderCO $RELEASE_VERSION - Windows x64" \
+            --notes-file RELEASE-NOTES.md \
+            --latest

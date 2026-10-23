@@ -34,7 +34,23 @@ To share it, zip all files in that folder together. Do not distribute only
 
 `npm run dist` also exposes electron-builder NSIS and portable targets. Execution
 may depend on machine policies; the folder distribution is the validated format.
-No Authenticode signing or automatic publishing is configured.
+No Authenticode signing is configured.
+
+GitHub Actions builds and publishes the Windows ZIP through
+`.github/workflows/release-windows.yml`, when that workflow or `package.json`
+changes on `main`, or on manual dispatch. It runs engine tests and five language
+workflows, verifies the package and OCR languages, then checks every ZIP file.
+Publishing uses GitHub's temporary token and needs no personal API keys.
+Existing releases are not overwritten: increase the version in `package.json`
+and its lockfile before publishing another version.
+
+To prepare the download locally after `npm run dist:folder`:
+
+```powershell
+./scripts/package-release.ps1
+```
+
+ZIP, SHA-256 and bilingual notes are generated in `release/github-assets/`.
 
 ## Tests
 

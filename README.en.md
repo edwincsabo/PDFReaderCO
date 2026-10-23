@@ -33,6 +33,16 @@ See [detailed features and limitations](docs/FEATURES.en.md).
 
 ## Getting started
 
+**[Download for Windows x64, no installation](https://github.com/edwincsabo/PDFReaderCO/releases/latest/download/PDFReaderCO-Windows-x64.zip)**
+· [All releases](https://github.com/edwincsabo/PDFReaderCO/releases)
+
+1. Download **PDFReaderCO-Windows-x64.zip**.
+2. Right-click the ZIP and select **Extract All**.
+3. Double-click **Abrir PDFReaderCO.cmd** or **electron.exe**.
+
+No Node.js installation or command-line steps are needed. This download includes
+the executable and all six OCR languages. Keep all accompanying files together.
+
 To run a Windows distribution, extract the **entire** application ZIP and open
 `Abrir PDFReaderCO.cmd`. Keep all accompanying files together. A prebuilt
 distribution does not require Node.js. GitHub's **Code → Download ZIP** contains

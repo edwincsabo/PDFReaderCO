@@ -1,0 +1,48 @@
+import{tr,translateMessage}from'./i18n';
+import { useEffect, useRef, useState } from 'react';
+import { searchOriginalReplacements, reviewOriginalReplacements, type ReplaceMatch, type ReplaceProgress, type ReplaceReview, type ReplaceSearch } from './original-text-client';
+import { Button, Modal } from './ui';
+
+type Props={bytes:Uint8Array;busy:boolean;onClose:()=>void;onShow:(match:ReplaceMatch)=>void;onApply:(review:ReplaceReview)=>Promise<string|undefined>};
+export function ReplaceTextDialog({bytes,busy,onClose,onShow,onApply}:Props){
+  const [query,setQuery]=useState(''),[replacement,setReplacement]=useState(''),[caseSensitive,setCaseSensitive]=useState(false),[wholeWord,setWholeWord]=useState(false),[expand,setExpand]=useState(true),[autoFit,setAutoFit]=useState(false),[minimum,setMinimum]=useState(8);
+  const [found,setFound]=useState<ReplaceSearch|null>(null),[review,setReview]=useState<ReplaceReview|null>(null),[selected,setSelected]=useState(''),[error,setError]=useState(''),[feedback,setFeedback]=useState(''),[working,setWorking]=useState(''),[progress,setProgress]=useState<ReplaceProgress|null>(null);
+  const serial=useRef(0),controller=useRef<AbortController|null>(null),alive=useRef(true);
+  const cancel=()=>{serial.current++;controller.current?.abort();controller.current=null;setWorking('');setProgress(null);};
+  useEffect(()=>{alive.current=true;return()=>{alive.current=false;serial.current++;controller.current?.abort();};},[]);
+  useEffect(()=>{cancel();setFound(null);setReview(null);setSelected('');setError('');},[bytes,query,caseSensitive,wholeWord]);
+  useEffect(()=>{setReview(null);setError('');},[replacement,autoFit,minimum,selected,expand]);
+  const locked=busy||!!working,validMinimum=!autoFit||Number.isFinite(minimum)&&minimum>=6&&minimum<=72;
+  const close=()=>{if(busy||working==='apply')return;cancel();onClose();};
+  const run=async(kind:'search'|'review',single=false)=>{
+    if(locked)return;cancel();const id=++serial.current,abort=new AbortController();controller.current=abort;setWorking(kind);setError('');setFeedback('');setReview(null);setProgress(null);if(kind==='search'){setFound(null);setSelected('');}
+    const options={signal:abort.signal,onProgress:(value:ReplaceProgress)=>{if(alive.current&&serial.current===id)setProgress(value);}};
+    try{
+      if(kind==='search'){const result=await searchOriginalReplacements(bytes,{query,caseSensitive,wholeWord},options);if(alive.current&&serial.current===id){setFound(result);setSelected(result.matches[0]?.id||'');}}
+      else if(found){const result=await reviewOriginalReplacements(bytes,{source:found.source,query,caseSensitive,wholeWord,replacement,autoFit,expandToSpace:expand,minimum,ids:single?[selected]:undefined},options);if(alive.current&&serial.current===id)setReview(result);}
+    }catch(error){if(alive.current&&serial.current===id&&!(error instanceof DOMException&&error.name==='AbortError'))setError(error instanceof Error?error.message:String(error));}
+    finally{if(alive.current&&serial.current===id){setWorking('');setProgress(null);controller.current=null;}}
+  };
+  const apply=async()=>{
+    if(locked||!review?.replaced)return;const id=++serial.current;setWorking('apply');setError('');setFeedback('');
+    try{const message=await onApply(review);if(alive.current&&message){setFeedback(message);setReview(null);setFound(null);setSelected('');}}
+    catch(error){if(alive.current){setError(error instanceof Error?error.message:String(error));setReview(null);}}
+    finally{if(alive.current&&serial.current===id)setWorking('');}
+  };
+  return <Modal title={tr("Buscar y reemplazar texto original")} onClose={close} wide><div className="replace-text-dialog">
+    <p className="dialog-note">{tr("Busca texto literal en el contenido de las páginas. Las coincidencias no cruzan líneas ni fragmentos de estilos incompatibles. No reemplaza anotaciones, campos de formulario ni texto de imágenes.")}</p>
+    <div className="replace-inputs"><label>{tr("Buscar")}<input aria-label={tr("Texto a buscar")} autoFocus maxLength={200} value={query} disabled={locked} onChange={e=>setQuery(e.target.value)}/></label><label>{tr("Reemplazar por")}<input aria-label={tr("Texto de reemplazo")} maxLength={4000} value={replacement} disabled={locked} placeholder={tr("Vacío elimina la coincidencia")} onChange={e=>setReplacement(e.target.value)}/></label></div>
+    <div className="replace-options"><label><input type="checkbox" checked={caseSensitive} disabled={locked} onChange={e=>setCaseSensitive(e.target.checked)}/>{tr(" Distinguir mayúsculas")}</label><label><input type="checkbox" checked={wholeWord} disabled={locked} onChange={e=>setWholeWord(e.target.checked)}/>{tr(" Palabras completas")}</label><label><input type="checkbox" aria-label={tr("Expandir reemplazos en el espacio libre")} checked={expand} disabled={locked} onChange={e=>setExpand(e.target.checked)}/>{tr(" Expandir en el espacio libre")}</label><label><input type="checkbox" checked={autoFit} disabled={locked} onChange={e=>setAutoFit(e.target.checked)}/>{tr(" Ajustar tamaño para que quepa")}</label><label>{tr("Mínimo (pt)")}<input type="number" aria-label={tr("Mínimo del reemplazo")} min="6" max="72" step="any" value={Number.isFinite(minimum)?minimum:''} disabled={locked||!autoFit} onChange={e=>setMinimum(e.target.value===''?NaN:Number(e.target.value))}/></label></div>
+    {!validMinimum&&<p role="alert" className="original-text-error">{tr("Indica un mínimo entre 6 y 72 puntos.")}</p>}
+    <div className="replace-actions"><Button disabled={locked||!query.length} onClick={()=>run('search')}>{tr("Buscar coincidencias")}</Button><Button disabled={locked||!selected||!validMinimum} onClick={()=>run('review',true)}>{tr("Revisar seleccionada")}</Button><Button disabled={locked||!found?.matches.length||found.truncated||!validMinimum} onClick={()=>run('review')}>{tr("Revisar todas")}</Button></div>
+    {error&&<p className="original-text-error" role="alert">{translateMessage(error)}</p>}{feedback&&<p className="replace-feedback" role="status">{translateMessage(feedback)}</p>}
+    {working&&<div className="replace-progress" role="status">{working==='apply'?tr("Aplicando el lote revisado…"):progress?tr("{0} {1} de {2}…",[progress.stage==='search'?'Buscando en página':'Preparando línea',progress.current,progress.total]):tr("Preparando la revisión…")}{working!=='apply'&&<Button onClick={()=>{cancel();setFeedback('Operación cancelada. El documento no cambió.');}}>{tr("Cancelar operación")}</Button>}</div>}
+    {found&&<><p className="replace-summary">{found.matches.length}{tr(" coincidencia(s) · ")}{found.scanned}{tr(" de ")}{found.pages}{tr(" páginas revisadas.")}{found.truncated?tr(" Hay más de 1.000: acota la búsqueda para revisar todas."):''}{found.unsupported?tr(" Se omitieron textos no recuperables o líneas de más de 4.000 caracteres."):''}</p><div className="replace-matches" role="group" aria-label={tr("Coincidencias encontradas")}>{found.matches.map((match,i)=>{
+      const start=Math.max(0,match.start-45),end=Math.min(match.line.length,match.start+match.length+65);
+      return <div className={'replace-match '+(selected===match.id?'selected':'')} key={match.id}><label title={match.line}><input type="radio" name="replacement-match" aria-label={tr("Coincidencia {0}, página {1}",[i+1,match.page])} checked={selected===match.id} disabled={locked} onChange={()=>setSelected(match.id)}/><span><strong>{tr("Página ")}{match.page}</strong><span>{start>0?'…':''}{match.line.slice(start,match.start)}<mark>{match.text}</mark>{match.line.slice(match.start+match.length,end)}{end<match.line.length?'…':''}</span>{!match.editable&&<small>{translateMessage(match.reason)}</small>}</span></label><Button disabled={locked} onClick={()=>{cancel();onShow(match);}}>{tr("Ver página")}</Button></div>;
+    })}</div>{!found.matches.length&&<p>{tr("No hay coincidencias en las líneas recuperables del documento.")}</p>}</>}
+    {review&&<section className="replace-review" aria-label={tr("Revisión del reemplazo")}><h3>{review.mode==='single'?tr("Coincidencia seleccionada"):tr("Lote completo")}</h3><p className="replace-review-summary">{review.replaced}{tr(" reemplazo(s) listo(s) en ")}{review.lines}{tr(" línea(s) · ")}{review.blocked}{tr(" bloqueado(s) · ")}{review.unchanged}{tr(" sin cambios.")}</p><div className="replace-entries">{review.entries.map(entry=><article key={entry.id} className={'replace-entry '+entry.status}><header><strong>{tr("Página ")}{entry.page} · {entry.count}{tr(" reemplazo(s)")}</strong><span>{entry.status==='ready'?tr("Listo"):entry.status==='adjusted'?tr("Ajustado: {0} → {1} pt",[entry.previousSize.toFixed(1),entry.pointSize.toFixed(1)]):entry.status==='blocked'?tr("No compatible"):tr("Sin cambios")}</span></header><div><p><small>{tr("Original")}</small>{entry.before}</p><p><small>{tr("Propuesto")}</small>{entry.after||tr("(Eliminar texto)")}</p></div><p>{translateMessage(entry.reason)}</p></article>)}</div><p className="dialog-note">{tr("Se aplicarán únicamente los cambios listos o ajustados de esta revisión. La expansión conserva el tamaño cuando hay espacio comprobado. Solo se reduce si activaste el ajuste. Revisa posibles cambios; el área original no garantiza visibilidad dentro de cualquier máscara.")}</p></section>}
+    <div className="modal-actions"><Button disabled={busy||working==='apply'} onClick={close}>{tr("Cerrar")}</Button><Button className="primary" disabled={locked||!review?.replaced} onClick={apply}>{review?.mode==='single'?tr("Reemplazar coincidencia"):tr("Reemplazar todas las compatibles")}</Button></div>
+  </div></Modal>;
+}
+

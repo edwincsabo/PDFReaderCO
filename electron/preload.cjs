@@ -1,0 +1,38 @@
+const { contextBridge, ipcRenderer } = require('electron');
+const listeners=new Set(), pending=[];
+ipcRenderer.on('action',(_,action,payload)=>{if(!listeners.size)pending.push([action,payload]);else for(const callback of listeners)callback(action,payload);});
+contextBridge.exposeInMainWorld('desktop', {
+  preferencesRead:()=>ipcRenderer.invoke('preferences:read'),preferencesSave:value=>ipcRenderer.invoke('preferences:save',value),onLanguage:callback=>{const listener=(_,language)=>callback(language);ipcRenderer.on('ui:language',listener);return()=>ipcRenderer.removeListener('ui:language',listener);},
+  aiStatus:()=>ipcRenderer.invoke('ai:status'),aiSave:value=>ipcRenderer.invoke('ai:save',value),aiRemove:provider=>ipcRenderer.invoke('ai:remove',provider),aiReset:()=>ipcRenderer.invoke('ai:reset'),
+  aiModels:provider=>ipcRenderer.invoke('ai:models',provider),aiAsk:request=>ipcRenderer.invoke('ai:ask',request),aiCancel:id=>ipcRenderer.invoke('ai:cancel',id),
+  listFonts:()=>ipcRenderer.invoke('fonts:list'),
+  readFont:id=>ipcRenderer.invoke('fonts:read',id),
+  open: () => ipcRenderer.invoke('files:open'),
+  batchRestore:()=>ipcRenderer.invoke('batch:restore'),
+  batchSave:state=>ipcRenderer.invoke('batch:save',state),
+  batchClear:()=>ipcRenderer.invoke('batch:clear'),
+  batchChoose:()=>ipcRenderer.invoke('batch:choose'),
+  batchFolder:()=>ipcRenderer.invoke('batch:folder'),
+  batchRead:id=>ipcRenderer.invoke('batch:read',id),
+  batchWrite:(id,folder,operation,bytes)=>ipcRenderer.invoke('batch:write',{id,folder,operation,bytes}),
+  batchRelease:ids=>ipcRenderer.invoke('batch:release',ids),
+  batchRunning:value=>ipcRenderer.send('batch:running',!!value),
+  recent: () => ipcRenderer.invoke('files:recent'),
+  openRecent: id => ipcRenderer.invoke('files:openRecent', id),
+  save: (bytes, name, kind) => ipcRenderer.invoke('files:save', {bytes, name, kind}),
+  saveAttachment: (bytes, name) => ipcRenderer.invoke('files:saveAttachment', {bytes, name}),
+  dirty: value => ipcRenderer.send('window:dirty', !!value),
+  confirm: message => ipcRenderer.invoke('window:confirm', message),
+  external: url => ipcRenderer.invoke('window:external', url),
+  fullscreen: () => ipcRenderer.invoke('window:fullscreen'),
+  nativeEdit: action => ipcRenderer.invoke('window:edit',action),
+  listRecovery: () => ipcRenderer.invoke('recovery:list'),
+  readRecovery: id => ipcRenderer.invoke('recovery:read',id),
+  saveRecovery: (id,name,bytes,historyId) => ipcRenderer.invoke('recovery:save',{id,name,bytes,historyId}),
+  discardRecovery: id => ipcRenderer.invoke('recovery:discard',id),
+  listHistory: () => ipcRenderer.invoke('recovery:history'),
+  readHistoryVersion: (historyId,versionId) => ipcRenderer.invoke('recovery:version-read',{historyId,versionId}),
+  deleteHistoryVersion: (historyId,versionId) => ipcRenderer.invoke('recovery:version-delete',{historyId,versionId}),
+  clearHistory: historyId => ipcRenderer.invoke('recovery:history-clear',historyId),
+  onAction: callback => { listeners.add(callback); for(const [action,payload] of pending.splice(0))callback(action,payload); return () => listeners.delete(callback); }
+});

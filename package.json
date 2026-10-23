@@ -1,0 +1,91 @@
+{
+  "name": "pdfreaderco",
+  "version": "1.49.1",
+  "private": true,
+  "description": "Herramientas PDF locales para Windows, con interfaz en español e inglés y asistente IA opcional.",
+  "author": "PDFReaderCO",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "type": "module",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build && node scripts/copy-assets.mjs",
+    "desktop": "electron .",
+    "dist": "npm run build && node scripts/prepare-desktop.mjs && electron-builder --win nsis portable --x64 --publish never",
+    "test": "node --test tests/*.test.mjs",
+    "test:ui": "playwright test",
+    "test:packaged": "node scripts/test-packaged.mjs",
+    "dist:folder": "npm run build && node scripts/prepare-desktop.mjs && node scripts/package-app.mjs && node scripts/package-folder.mjs",
+    "test:folder": "node scripts/test-packaged.mjs --folder"
+  },
+  "dependencies": {
+    "@embedpdf/pdfium": "2.15.1",
+    "@tesseract.js-data/deu": "1.0.0",
+    "@tesseract.js-data/eng": "1.0.0",
+    "@tesseract.js-data/fra": "1.0.0",
+    "@tesseract.js-data/ita": "1.0.0",
+    "@tesseract.js-data/por": "1.0.0",
+    "@tesseract.js-data/spa": "1.0.0",
+    "lucide-react": "0.468.0",
+    "pdf-lib": "1.17.1",
+    "pdfjs-dist": "6.4.299",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "tesseract.js": "7.0.0",
+    "tesseract.js-core": "7.0.0"
+  },
+  "devDependencies": {
+    "@electron/asar": "3.4.1",
+    "@playwright/test": "1.56.1",
+    "@types/react": "18.3.27",
+    "@types/react-dom": "18.3.7",
+    "@vitejs/plugin-react": "5.0.4",
+    "electron": "44.9.0",
+    "electron-builder": "26.15.3",
+    "typescript": "5.9.3",
+    "vite": "7.1.12"
+  },
+  "build": {
+    "appId": "co.pdfreader.desktop",
+    "productName": "PDFReaderCO",
+    "directories": {
+      "output": "release",
+      "app": "desktop-bundle"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json",
+      "LICENSE",
+      "NOTICE",
+      "THIRD_PARTY_NOTICES.md",
+      "licenses/**/*",
+      "build/icon.ico",
+      "!**/node_modules/**/*"
+    ],
+    "asar": true,
+    "npmRebuild": false,
+    "electronDist": "node_modules/electron/dist",
+    "win": {
+      "icon": "build/icon.ico",
+      "signExecutable": false,
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "deleteAppDataOnUninstall": false,
+      "language": "3082",
+      "artifactName": "PDFReaderCO-${version}-Instalador.exe"
+    },
+    "portable": {
+      "artifactName": "PDFReaderCO-${version}-Portable.exe"
+    }
+  }
+}

@@ -1,0 +1,10 @@
+import { spawn } from 'node:child_process';
+import path from 'node:path';
+import { readFile } from 'node:fs/promises';
+const metadata=JSON.parse(await readFile('package.json','utf8'));
+const target=process.argv.includes('--folder')?`release/PDFReaderCO-${metadata.version}-Carpeta/electron.exe`:'release/win-unpacked/PDFReaderCO.exe';
+const env={...process.env,PDFREADERCO_EXECUTABLE:path.resolve(target)};
+const selections=process.argv.slice(2).filter(value=>value!=='--folder');
+const child=spawn(process.execPath,['node_modules/@playwright/test/cli.js','test',...selections],{stdio:'inherit',env,shell:false,windowsHide:true});
+child.on('error',error=>{console.error(error);process.exitCode=1;});
+child.on('exit',code=>{process.exitCode=code??1;});

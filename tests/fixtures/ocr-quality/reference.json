@@ -1,0 +1,30 @@
+[
+  {
+    "name": "Una columna: factura en español",
+    "layout": "column",
+    "contrast": false,
+    "image": "page-1.png",
+    "reference": "FACTURA DE SERVICIOS\nCliente: Ana Morales\nFactura: 83415\nFecha: 18/10/2026\nCiudad: Bogotá\nImporte total: 420,75 pesos\nEl pingüino llegó a tiempo."
+  },
+  {
+    "name": "Dos columnas: lectura por bloques",
+    "layout": "auto",
+    "contrast": false,
+    "image": "page-2.png",
+    "reference": "CLIENTE\nNombre: Laura Torres\nReferencia: 70214\nCantidad: 24\nEstado: recibido\nPROVEEDOR\nNombre: Juan Rivera\nOrden: 76028\nValor: 850,50\nEstado: aprobado"
+  },
+  {
+    "name": "Bloque de bajo contraste",
+    "layout": "block",
+    "contrast": true,
+    "image": "page-3.png",
+    "reference": "INFORME DE REVISION\nResponsable: Maria Lopez\nSaldo disponible: 4580,20\nReferencia: A-72051\nEntrega prevista: 24/10/2026\nObservacion: pago recibido."
+  },
+  {
+    "name": "Formulario con texto disperso",
+    "layout": "sparse",
+    "contrast": false,
+    "image": "page-4.png",
+    "reference": "CONTROL DE ENTREGA\nPedido 70214\nRecibido 18/10/2026\nCantidad 24\nAPROBADO"
+  }
+]

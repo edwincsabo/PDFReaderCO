@@ -1,0 +1,38 @@
+import type { PDFDocumentProxy } from 'pdfjs-dist';
+export type Tool = 'select'|'highlight'|'underline'|'strike'|'pen'|'rect'|'ellipse'|'text'|'note'|'signature'|'image';
+export type Mark = { id:string; page:number; tool:Tool; x:number; y:number; w:number; h:number; color:string; size:number; text?:string; points?:number[][]; image?:string; rotation?:number; opacity?:number; fill?:string; fillOpacity?:number; fontFamily?:'sans'|'serif'|'mono'; bold?:boolean; italic?:boolean; align?:'left'|'center'|'right'; stamp?:boolean };
+export type FieldValue = string|boolean|string[];
+export type FormKind = 'text'|'checkbox'|'dropdown'|'radio'|'list';
+export type FieldRect = {x:number;y:number;w:number;h:number};
+export type FormRule={requiredCheck?:boolean;format:'none'|'number'|'integer'|'date'|'email';min:string|null;max:string|null;minLength:number|null;maxLength:number|null;minDate:string;maxDate:string;calculation:null|{operation:'sum'|'difference'|'product'|'percentage'|'average'|'min'|'max';sources:string[];decimals:number}};
+export type FormDesign = FieldRect & {id:string;name:string;page:number;kind:FormKind;required:boolean;defaultValue:FieldValue;options:string[];multiline:boolean;multiple?:boolean;fontSize:number;groupId?:string;optionValue?:string;rule?:FormRule|null;ruleError?:string};
+export type BookmarkEntry = {id:string;page:number;label:string};
+export type Model = { marks:Mark[]; forms:Record<string,FieldValue>; bookmarks?:BookmarkEntry[] };
+export type OpenFile = { id:string; name:string; bytes:Uint8Array; recovered?:boolean; historyId?:string };
+export type Recent = { id:string; name:string; opened:string };
+export type RecoveryEntry = {id:string;name:string;updated:string;size:number};
+export type HistoryVersion = {id:string;created:string;size:number;number:number;protected:boolean};
+export type HistoryGroup = {id:string;name:string;updated:string;versions:HistoryVersion[]};
+export type HistoryData = {groups:HistoryGroup[];usageBytes:number;maxBytes:number;maxVersions:number;maxDocuments:number};
+export type PDFProxy = PDFDocumentProxy;
+declare global { interface Window { desktop?: {
+  preferencesRead():Promise<{language:'es'|'en';warning:string}>;preferencesSave(value:{language:'es'|'en'}):Promise<{language:'es'|'en';warning:string}>;onLanguage(callback:(language:'es'|'en')=>void):()=>void;
+  aiStatus():Promise<import('./ai-types').AiStatus>;aiSave(value:{provider:import('./ai-types').AiProvider;model:string;key:string;remember:boolean}):Promise<import('./ai-types').AiStatus>;
+  aiRemove(provider:import('./ai-types').AiProvider):Promise<import('./ai-types').AiStatus>;aiReset():Promise<import('./ai-types').AiStatus>;
+  aiModels(provider:import('./ai-types').AiProvider):Promise<{id:string;name:string}[]>;aiAsk(request:import('./ai-types').AiRequest):Promise<import('./ai-types').AiAnswer>;aiCancel(id:string):Promise<boolean>;
+  listFonts():Promise<{id:string;name:string;family:string;style:string}[]>;readFont(id:string):Promise<Uint8Array>;
+  open():Promise<OpenFile[]>; recent():Promise<Recent[]>; openRecent(id:string):Promise<OpenFile>;
+  batchRestore():Promise<any>;batchSave(state:unknown):Promise<{saved:boolean}>;batchClear():Promise<void>;
+  batchChoose():Promise<{id:string;name:string;size:number;error:string}[]>;
+  batchFolder():Promise<{id:string;path:string}|null>;
+  batchRead(id:string):Promise<Uint8Array>;
+  batchWrite(id:string,folder:string,operation:string,bytes:Uint8Array):Promise<{name:string;size:number}>;
+  batchRelease(ids:string[]):Promise<void>;batchRunning(value:boolean):void;
+  save(bytes:Uint8Array,name:string,kind:string):Promise<string|null>; dirty(value:boolean):void;
+  saveAttachment(bytes:Uint8Array,name:string):Promise<string|null>;
+  confirm(message:string):Promise<boolean>; external(url:string):Promise<void>; fullscreen():Promise<void>;
+  onAction(callback:(action:string,payload?:OpenFile)=>void):()=>void;
+  listRecovery():Promise<RecoveryEntry[]>;readRecovery(id:string):Promise<OpenFile>;saveRecovery(id:string,name:string,bytes:Uint8Array,historyId?:string):Promise<{created:boolean;warning?:string}>;discardRecovery(id:string):Promise<void>;
+  listHistory():Promise<HistoryData>;readHistoryVersion(historyId:string,versionId:string):Promise<OpenFile>;deleteHistoryVersion(historyId:string,versionId:string):Promise<void>;clearHistory(historyId:string):Promise<{removed:number;kept:number}>;
+  nativeEdit(action:'copy'|'paste'|'selectAll'|'undo'|'redo'):Promise<void>;
+} } }

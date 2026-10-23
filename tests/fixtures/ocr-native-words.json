@@ -1,0 +1,185 @@
+{
+  "text": "Documento escaneado\nFactura numero 2026\n\nEl pinguino llegó a Bogotá.\nTotal: 1250,50 pesos\nLocal OCR works offline.\n",
+  "lines": [
+    [
+      {
+        "text": "Documento",
+        "confidence": 96,
+        "box": [
+          84,
+          128,
+          321,
+          159
+        ]
+      },
+      {
+        "text": "escaneado",
+        "confidence": 96,
+        "box": [
+          339,
+          127,
+          563,
+          159
+        ]
+      }
+    ],
+    [
+      {
+        "text": "Factura",
+        "confidence": 96,
+        "box": [
+          84,
+          223,
+          235,
+          254
+        ]
+      },
+      {
+        "text": "numero",
+        "confidence": 96,
+        "box": [
+          256,
+          230,
+          413,
+          254
+        ]
+      },
+      {
+        "text": "2026",
+        "confidence": 96,
+        "box": [
+          432,
+          222,
+          534,
+          254
+        ]
+      }
+    ],
+    [
+      {
+        "text": "El",
+        "confidence": 96,
+        "box": [
+          84,
+          317,
+          115,
+          349
+        ]
+      },
+      {
+        "text": "pinguino",
+        "confidence": 31,
+        "box": [
+          136,
+          317,
+          314,
+          358
+        ]
+      },
+      {
+        "text": "llegó",
+        "confidence": 96,
+        "box": [
+          334,
+          315,
+          430,
+          358
+        ]
+      },
+      {
+        "text": "a",
+        "confidence": 96,
+        "box": [
+          449,
+          325,
+          468,
+          349
+        ]
+      },
+      {
+        "text": "Bogotá.",
+        "confidence": 96,
+        "box": [
+          489,
+          315,
+          644,
+          358
+        ]
+      }
+    ],
+    [
+      {
+        "text": "Total:",
+        "confidence": 93,
+        "box": [
+          80,
+          412,
+          195,
+          444
+        ]
+      },
+      {
+        "text": "1250,50",
+        "confidence": 92,
+        "box": [
+          218,
+          412,
+          385,
+          449
+        ]
+      },
+      {
+        "text": "pesos",
+        "confidence": 95,
+        "box": [
+          405,
+          420,
+          522,
+          453
+        ]
+      }
+    ],
+    [
+      {
+        "text": "Local",
+        "confidence": 93,
+        "box": [
+          84,
+          507,
+          186,
+          539
+        ]
+      },
+      {
+        "text": "OCR",
+        "confidence": 91,
+        "box": [
+          205,
+          507,
+          293,
+          539
+        ]
+      },
+      {
+        "text": "works",
+        "confidence": 96,
+        "box": [
+          309,
+          507,
+          428,
+          539
+        ]
+      },
+      {
+        "text": "offline.",
+        "confidence": 96,
+        "box": [
+          445,
+          507,
+          585,
+          539
+        ]
+      }
+    ]
+  ]
+}

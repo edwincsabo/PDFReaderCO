@@ -1,0 +1,17 @@
+import { cp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import path from 'node:path';
+const metadata=JSON.parse(await readFile('package.json','utf8')),root=path.resolve('release'),target=path.resolve(root,`PDFReaderCO-${metadata.version}-Carpeta`);
+if(!target.startsWith(root+path.sep))throw new Error('Destino de distribución fuera de release.');
+await rm(target,{recursive:true,force:true,maxRetries:3,retryDelay:100});await mkdir(target,{recursive:true});
+await cp('node_modules/electron/dist',target,{recursive:true});
+await cp('release/application/app.asar',path.join(target,'resources/app.asar'));
+await cp('build/icon.ico',path.join(target,'PDFReaderCO.ico'));
+await writeFile(path.join(target,'Abrir PDFReaderCO.cmd'),'@echo off\r\ncd /d "%~dp0"\r\nstart "" "%~dp0electron.exe" %*\r\n');
+await writeFile('Iniciar PDFReaderCO.cmd',`@echo off\r\ncd /d "%~dp0"\r\nif exist "%~dp0release\\PDFReaderCO-${metadata.version}-Carpeta\\electron.exe" (\r\n  start "" "%~dp0release\\PDFReaderCO-${metadata.version}-Carpeta\\electron.exe" %*\r\n) else if exist "%~dp0node_modules\\electron\\dist\\electron.exe" (\r\n  start "" "%~dp0node_modules\\electron\\dist\\electron.exe" "%~dp0" %*\r\n) else (\r\n  echo Extrae la distribucion en carpeta y abre su archivo Abrir PDFReaderCO.cmd.\r\n  pause\r\n)\r\n`);
+await writeFile(path.join(target,'LEEME.txt'),`PDFReaderCO ${metadata.version} para Windows x64\r\n\r\nAbre "Abrir PDFReaderCO.cmd" o "electron.exe". Conserva todos los archivos juntos.\r\nEl runtime Electron se distribuye sin modificar sus bytes. La aplicación está en resources/app.asar.\r\nNo requiere instalar Node.js ni npm. No cambia la configuración de seguridad de Windows.\r\nEsta distribución no tiene firma de editor propia. Su ejecución sigue sujeta a las políticas del equipo.\r\n`);
+const hash=async file=>createHash('sha256').update(await readFile(file)).digest('hex');
+const sourceHash=await hash('node_modules/electron/dist/electron.exe'),targetHash=await hash(path.join(target,'electron.exe'));
+if(sourceHash!==targetHash)throw new Error('El runtime distribuido no coincide con Electron original.');
+await writeFile(path.join(target,'DISTRIBUCION.json'),JSON.stringify({application:'PDFReaderCO',version:metadata.version,electron:metadata.devDependencies.electron,unmodifiedRuntimeSha256:targetHash,applicationAsarSha256:await hash(path.join(target,'resources/app.asar')),packagingReference:'https://www.electronjs.org/docs/latest/tutorial/application-distribution'},null,2));
+console.log(`Distribución en carpeta creada: ${target}`);

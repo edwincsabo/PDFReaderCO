@@ -1,0 +1,45 @@
+import { test, expect, _electron as electron } from '@playwright/test';
+import { PDFDocument, StandardFonts } from 'pdf-lib';
+import { mkdir, writeFile, readFile } from 'node:fs/promises';
+import path from 'node:path';
+
+test('desktop: open, search, annotate, undo, forms, export, project and page operations',async()=>{
+  const root=path.resolve('test-results/desktop');await mkdir(root,{recursive:true});
+  const document=await PDFDocument.create(),font=await document.embedFont(StandardFonts.Helvetica);
+  document.setTitle('Documento de prueba');document.setAuthor('PDFReaderCO');
+  for(let i=1;i<=3;i++){const p=document.addPage([595,842]);p.drawText(`Informe de prueba - página ${i}`,{x:48,y:775,size:22,font});p.drawText('Lectura, búsqueda y anotaciones locales.',{x:48,y:735,size:13,font});}
+  const f=document.getForm();const name=f.createTextField('Nombre completo');name.addToPage(document.getPage(0),{x:48,y:640,width:260,height:28});name.setText('Inicial');const check=f.createCheckBox('Acepto');check.addToPage(document.getPage(0),{x:48,y:600,width:20,height:20});f.updateFieldAppearances(font);
+  const fixture=path.join(root,'entrada.pdf');await writeFile(fixture,await document.save());
+  const env={...process.env,PDFREADERCO_TEST_DATA:path.join(root,'profile-'+crypto.randomUUID())};delete env.ELECTRON_RUN_AS_NODE;
+  const app=await electron.launch({executablePath:process.env.PDFREADERCO_EXECUTABLE||undefined,args:process.env.PDFREADERCO_EXECUTABLE?[]:[path.resolve('electron/main.cjs')],env});
+  const page=await app.firstWindow();const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
+  try {
+    await page.waitForLoadState('domcontentloaded');await expect(page.getByRole('heading',{name:'Todo tu PDF.'})).toBeVisible();expect(await page.evaluate(()=>typeof (window as any).require)).toBe('undefined');expect(await app.evaluate(({BrowserWindow})=>{const p=BrowserWindow.getAllWindows()[0].webContents.getLastWebPreferences();return {sandbox:p.sandbox,contextIsolation:p.contextIsolation,nodeIntegration:p.nodeIntegration};})).toEqual({sandbox:true,contextIsolation:true,nodeIntegration:false});await page.screenshot({path:path.join(root,'01-inicio.png')});
+    await app.evaluate(({BrowserWindow},bytes)=>{BrowserWindow.getAllWindows()[0].webContents.send('action','document',{id:'fixture',name:'entrada.pdf',bytes:new Uint8Array(bytes)});},Array.from(await readFile(fixture)));
+    await expect(page.locator('.pdf-page.rendered').first()).toBeVisible();await expect(page.locator('.textLayer').first()).toContainText('Informe de prueba');
+    await page.getByRole('button',{name:'Buscar texto',exact:true}).click();await page.getByRole('textbox',{name:'Buscar texto',exact:true}).fill('Informe');await expect(page.locator('.search-result')).toHaveCount(3);
+    await page.getByRole('button',{name:'Anotar',exact:true}).click();await page.getByRole('button',{name:'Resaltar',exact:true}).click();
+    const box=await page.locator('.pdf-page').first().boundingBox();if(!box)throw new Error('Página no visible');await page.mouse.move(box.x+60,box.y+75);await page.mouse.down();await page.mouse.move(box.x+320,box.y+100,{steps:10});await page.mouse.up();
+    await expect(page.locator('.drawing-layer .mark')).toHaveCount(1);await page.getByRole('button',{name:'Deshacer (Ctrl+Z)',exact:true}).click();await expect(page.locator('.drawing-layer .mark')).toHaveCount(0);await page.getByRole('button',{name:'Rehacer (Ctrl+Y)',exact:true}).click();await expect(page.locator('.drawing-layer .mark')).toHaveCount(1);
+    await page.getByRole('button',{name:'Formularios',exact:true}).click();await page.locator('.form-field').filter({hasText:'Nombre completo'}).locator('input').fill('Edwin Muñoz');await page.locator('.form-field').filter({hasText:'Acepto'}).locator('input').check();
+    await page.getByRole('button',{name:'Anotar',exact:true}).click();await page.getByRole('button',{name:'Añadir texto',exact:true}).click();await page.mouse.click(box.x+80,box.y+500);await page.getByRole('dialog').locator('textarea').fill('Texto agregado de prueba');await page.getByRole('button',{name:'Aplicar',exact:true}).click();await expect(page.locator('.drawing-layer .mark')).toHaveCount(2);
+    await expect(page.getByRole('button',{name:'Seleccionar',exact:true})).toHaveAttribute('aria-pressed','true');
+    const inserted=page.locator('[data-mark-tool="text"]'),insertedBox=await inserted.locator('.mark-hitbox').boundingBox();if(!insertedBox)throw new Error('Falta el texto insertado.');const initialX=Number(await inserted.getAttribute('data-x')),initialY=Number(await inserted.getAttribute('data-y'));await page.mouse.move(insertedBox.x+2,insertedBox.y+2);await page.mouse.down();await page.mouse.move(insertedBox.x-18,insertedBox.y-58,{steps:8});await page.mouse.up();expect(Number(await inserted.getAttribute('data-x'))).toBeLessThan(initialX);expect(Number(await inserted.getAttribute('data-y'))).toBeLessThan(initialY);
+    await page.screenshot({path:path.join(root,'02-documento.png')});
+    const output=path.join(root,'salida.pdf');await app.evaluate(({dialog},output)=>{dialog.showSaveDialog=async()=>({canceled:false,filePath:output});},output);await page.getByRole('button',{name:'Guardar como',exact:true}).click();await expect(page.locator('.reader-status')).toContainText('PDF guardado');
+    const saved=await PDFDocument.load(await readFile(output));expect(saved.getForm().getTextField('Nombre completo').getText()).toBe('Edwin Muñoz');expect(saved.getForm().getCheckBox('Acepto').isChecked()).toBe(true);expect(saved.getPageCount()).toBe(3);
+    await page.getByRole('button',{name:'Formularios',exact:true}).click();const project=path.join(root,'editable.pdfco');await app.evaluate(({dialog},output)=>{dialog.showSaveDialog=async()=>({canceled:false,filePath:output});},project);await page.getByRole('button',{name:'Proyecto editable',exact:true}).click();await expect(page.locator('.reader-status')).toContainText('Proyecto editable guardado');const parsed=JSON.parse(await readFile(project,'utf8'));expect(parsed.model.marks).toHaveLength(2);expect(parsed.model.forms['Nombre completo']).toBe('Edwin Muñoz');
+    await page.getByRole('button',{name:'Organizar',exact:true}).click();await page.getByRole('button',{name:'Rotar',exact:true}).click();await page.getByRole('dialog').getByRole('textbox').first().fill('1');await page.getByRole('button',{name:'Aplicar',exact:true}).click();await expect(page.locator('.reader-status')).toContainText('Operación completada');await expect(page.locator('.pdf-page.rendered').first()).toBeVisible();
+    await page.screenshot({path:path.join(root,'03-rotado.png')});
+    await app.evaluate(({dialog},output)=>{dialog.showSaveDialog=async()=>({canceled:false,filePath:output});},path.join(root,'rotado.pdf'));await page.getByRole('button',{name:'Guardar como',exact:true}).click();await expect(page.locator('.reader-status')).toContainText('PDF guardado');expect((await PDFDocument.load(await readFile(path.join(root,'rotado.pdf')))).getPage(0).getRotation().angle).toBe(90);
+    await expect(page.locator('.pdf-page').first().locator('input[type=text],input:not([type])').first()).toHaveCSS('transform',/matrix\(0, 1, -1, 0/);
+    await page.getByRole('button',{name:'Lectura',exact:true}).click();
+    await app.evaluate(({dialog},output)=>{dialog.showSaveDialog=async()=>({canceled:false,filePath:output});},path.join(root,'texto.txt'));await page.getByRole('button',{name:'Texto',exact:true}).click();await expect.poll(async()=>{try{return await readFile(path.join(root,'texto.txt'),'utf8');}catch{return '';}}).toContain('Texto agregado de prueba');
+    await app.evaluate(({dialog},output)=>{dialog.showSaveDialog=async()=>({canceled:false,filePath:output});},path.join(root,'pagina.png'));await page.getByRole('button',{name:'Página a PNG',exact:true}).click();await expect.poll(async()=>{try{return (await readFile(path.join(root,'pagina.png'))).length;}catch{return 0;}}).toBeGreaterThan(1000);
+    await page.getByRole('button',{name:'Imprimir',exact:true}).click();await page.getByRole('dialog').getByRole('textbox').fill('1');await page.getByRole('button',{name:'Preparar vista previa',exact:true}).click();await expect(page.getByRole('dialog',{name:'Vista previa de impresión'})).toBeVisible();await expect(page.locator('.print-preview-list img')).toHaveCount(1);await page.getByRole('button',{name:'Cerrar',exact:true}).click();
+    await app.evaluate(({BrowserWindow},bytes)=>{BrowserWindow.getAllWindows()[0].webContents.send('action','document',{id:'project',name:'editable.pdfco',bytes:new Uint8Array(bytes)});},Array.from(await readFile(project)));await expect(page.locator('.workspace-host:not([hidden]) .drawing-layer .mark')).toHaveCount(2);await expect(page.locator('.workspace-host:not([hidden]) .pdf-field').first()).toHaveValue('Edwin Muñoz');
+    expect(errors).toEqual([]);
+  } finally {await app.evaluate(({dialog})=>{dialog.showMessageBoxSync=()=>1;});await app.close();}
+});
+
+
